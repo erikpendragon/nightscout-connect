@@ -178,6 +178,9 @@ To synchronize from Glooko use the following variables.
 * `CONNECT_GLOOKO_TIMEZONE_OFFSET=0`
 * `CONNECT_GLOOKO_DEVICE_ID=` optional stable device identity
 * `CONNECT_GLOOKO_SERIAL_NUMBER=` optional stable serial number
+* `CONNECT_GLOOKO_WEB_ORIGIN=` optional web origin override for regional/custom hosts
+* `CONNECT_GLOOKO_AUTH_MODE=api` optional auth mode: `api`, `web`, or `auto`
+* `CONNECT_GLOOKO_USE_V3_GRAPH=true` optional v3 graph CGM fallback when v2 returns no readings
 
 By default, `CONNECT_GLOOKO_SERVER` is set to `api.glooko.com` because the
 default value for `CONNECT_GLOOKO_ENV` is `default`.
@@ -192,7 +195,11 @@ If both, `CONNECT_GLOOKO_SERVER` and `CONNECT_GLOOKO_ENV` are set, only
 
 Glooko uploads treatments and, when the v2 `cgm/readings` endpoint returns
 readings, CGM entries. Some EU accounts may require newer web-login or v3 graph
-flows that are not yet implemented here.
+flows. `CONNECT_GLOOKO_AUTH_MODE=web` uses Glooko's web sign-in form with CSRF
+token handling; `auto` tries API login first and falls back to web login on a
+422 response. The optional v3 graph fallback fetches `cgmHigh`, `cgmNormal`,
+and `cgmLow` series when v2 CGM readings are empty, using the same
+authenticated session cookie.
 
 ### Libre Link Up
 To synchronize from Libre Link Up use the following variables.
@@ -265,4 +272,3 @@ encourage migration away from `share2nightscout-bridge`:
 * Safe community: There are now randomization behaviors to prevent tragedy of
   the commons from occurring.  These features help spread the load to avoid
   accidentally overwhelming vendor servers.
-
