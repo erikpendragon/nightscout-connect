@@ -26,6 +26,7 @@ test('Glooko validation supports default, EU, and explicit servers', () => {
 
   assert.equal(glookoSource.validate(common).config.baseURL, 'https://api.glooko.com');
   assert.equal(glookoSource.validate({ ...common, glookoEnv: 'eu' }).config.baseURL, 'https://eu.api.glooko.com');
+  assert.equal(glookoSource.validate({ ...common, glookoEnv: 'ca' }).config.baseURL, 'https://ca.api.glooko.com');
   assert.equal(
     glookoSource.validate({ ...common, glookoServer: 'de-fr.api.glooko.com' }).config.baseURL,
     'https://de-fr.api.glooko.com'
@@ -36,7 +37,7 @@ test('Glooko validation supports default, EU, and explicit servers', () => {
   );
 });
 
-test('Glooko validation carries stable device identity and timezone offset', () => {
+test('Glooko validation carries stable device identity, auth mode, graph flag, and timezone offset', () => {
   const result = glookoSource.validate({
     glookoEmail: 'user@example.com',
     glookoPassword: 'secret',
@@ -53,6 +54,16 @@ test('Glooko validation carries stable device identity and timezone offset', () 
   assert.equal(result.config.glookoSerialNumber, 'serial-123');
   assert.equal(result.config.glookoUseV3Graph, true);
   assert.equal(result.config.glookoAuthMode, 'auto');
+});
+
+test('Glooko validation keeps unknown auth modes on safe api default', () => {
+  const result = glookoSource.validate({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoAuthMode: 'surprise'
+  });
+
+  assert.equal(result.config.glookoAuthMode, 'api');
 });
 
 test('Glooko auth sends configurable Android device identity', async () => {
@@ -78,6 +89,19 @@ test('Glooko auth sends configurable Android device identity', async () => {
     cookies: '_logbook-web_session=session-123; path=/',
     user: { userLogin: { glookoCode: 'patient-123' } }
   });
+});
+
+test('Glooko API auth fails clearly when two-factor is required', async () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    baseURL: 'https://api.glooko.com'
+  }, fakeAxios(() => Promise.resolve({
+    headers: { 'set-cookie': ['_logbook-web_session=session-123; path=/'] },
+    data: { twoFaRequired: true }
+  })));
+
+  await assert.rejects(() => source.authFromCredentials(), /two-factor/);
 });
 
 test('Glooko auth supports explicit regional web origin overrides', async () => {
@@ -119,6 +143,8 @@ test('Glooko web auth mode uses CSRF form login and returns session cookie', asy
     if (call.method === 'post' && call.path === '/users/sign_in?id=login_form') {
       assert.match(call.body, /authenticity_token=csrf-123/);
       assert.match(call.body, /user%5Bemail%5D=user%40example.com/);
+      assert.match(call.body, /language=en/);
+      assert.match(call.body, /redirect_to=%2F/);
       assert.equal(call.options.headers.Cookie, '_logbook-web_session=preauth; path=/');
       assert.equal(call.options.headers['Content-Type'], 'application/x-www-form-urlencoded');
       return Promise.resolve({
@@ -137,6 +163,67 @@ test('Glooko web auth mode uses CSRF form login and returns session cookie', asy
     'get /users/sign_in?locale=en-GB',
     'post /users/sign_in?id=login_form'
   ]);
+});
+
+test('Glooko web auth can extract CSRF token from meta tag', async () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoAuthMode: 'web',
+    baseURL: 'https://eu.api.glooko.com'
+  }, fakeAxios((call) => {
+    if (call.method === 'get') {
+      return Promise.resolve({
+        headers: { 'set-cookie': ['_logbook-web_session=preauth; path=/'] },
+        data: '<meta name="csrf-token" content="csrf-meta-123">'
+      });
+    }
+    assert.match(call.body, /authenticity_token=csrf-meta-123/);
+    return Promise.resolve({
+      headers: { 'set-cookie': ['_logbook-web_session=session-123; path=/'] },
+      data: { success: true }
+    });
+  }));
+
+  assert.equal((await source.authFromCredentials()).cookies, '_logbook-web_session=session-123; path=/');
+});
+
+test('Glooko web auth fails clearly when two-factor is required', async () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoAuthMode: 'web',
+    baseURL: 'https://eu.api.glooko.com'
+  }, fakeAxios((call) => {
+    if (call.method === 'get') {
+      return Promise.resolve({
+        headers: { 'set-cookie': ['_logbook-web_session=preauth; path=/'] },
+        data: '<input type="hidden" name="authenticity_token" value="csrf-123">'
+      });
+    }
+    return Promise.resolve({
+      headers: { 'set-cookie': ['_logbook-web_session=session-123; path=/'] },
+      data: { two_fa_required: true }
+    });
+  }));
+
+  await assert.rejects(() => source.authFromCredentials(), /two-factor/);
+});
+
+test('Glooko web auth fails clearly when CSRF token is missing', async () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoAuthMode: 'web',
+    baseURL: 'https://eu.api.glooko.com'
+  }, fakeAxios((call) => {
+    if (call.method === 'get') {
+      return Promise.resolve({ headers: {}, data: '<html>No token</html>' });
+    }
+    throw new Error('unexpected call');
+  }));
+
+  await assert.rejects(() => source.authFromCredentials(), /authenticity_token/);
 });
 
 test('Glooko auto auth mode falls back to web login on 422', async () => {
@@ -175,22 +262,6 @@ test('Glooko auto auth mode falls back to web login on 422', async () => {
     'get /users/sign_in?locale=en-GB',
     'post /users/sign_in?id=login_form'
   ]);
-});
-
-test('Glooko web auth fails clearly when CSRF token is missing', async () => {
-  const source = glookoSource({
-    glookoEmail: 'user@example.com',
-    glookoPassword: 'secret',
-    glookoAuthMode: 'web',
-    baseURL: 'https://eu.api.glooko.com'
-  }, fakeAxios((call) => {
-    if (call.method === 'get') {
-      return Promise.resolve({ headers: {}, data: '<html>No token</html>' });
-    }
-    throw new Error('unexpected call');
-  }));
-
-  await assert.rejects(() => source.authFromCredentials(), /authenticity_token/);
 });
 
 test('Glooko transform maps v2 CGM readings to Nightscout entries', () => {
@@ -249,6 +320,28 @@ test('Glooko transform maps v3 graph CGM fallback readings', () => {
   ]);
 });
 
+test('Glooko v3 graph fallback converts mmol/L display values when value is absent', () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoTimezoneOffset: 0,
+    glookoUseV3Graph: true,
+    baseURL: 'https://api.glooko.com'
+  }, fakeAxios(() => Promise.resolve({ data: {} })));
+
+  const result = source.transformData({
+    readings: [],
+    userProfile: { currentUser: { meterUnits: 'mmoll' } },
+    v3Graph: {
+      series: {
+        cgmNormal: [{ x: 1760000000, timestamp: '2025-10-09T08:53:20.000Z', y: 6.7 }]
+      }
+    }
+  });
+
+  assert.equal(result.entries[0].sgv, 121);
+});
+
 test('Glooko data fetch adds v3 graph fallback when v2 CGM readings are empty', async () => {
   const calls = [];
   const source = glookoSource({
@@ -271,6 +364,7 @@ test('Glooko data fetch adds v3 graph fallback when v2 CGM readings are empty', 
     }
     if (call.path.startsWith('/api/v3/graph/data')) {
       assert.match(call.path, /series\[\]=cgmNormal/);
+      assert.doesNotMatch(call.path, /series%5B%5D/);
       return Promise.resolve({ data: { series: { cgmNormal: [{ x: 1760000000, value: 12345 }] } } });
     }
     throw new Error('unexpected path ' + call.path);
