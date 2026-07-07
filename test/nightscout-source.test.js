@@ -65,7 +65,7 @@ test('Nightscout source transform ignores non-array payloads', () => {
     apiSecret: 'secret'
   }, fakeAxios(() => Promise.resolve({ data: [] })));
 
-  assert.deepEqual(source.transformGlucose({ error: true }), { entries: [] });
+  assert.deepEqual(source.transformGlucose({ error: true }), { entries: [], treatments: [], devicestatus: [], profiles: [] });
 });
 
 test('Nightscout source validation accepts token URLs without source API secret', () => {
@@ -75,4 +75,19 @@ test('Nightscout source validation accepts token URLs without source API secret'
 
   assert.equal(result.ok, true);
   assert.equal(result.config.kind, 'nightscout');
+});
+
+test('Nightscout source transforms all collection arrays', () => {
+  const source = nightscoutSource({
+    url: 'https://source.example',
+    apiSecret: 'secret'
+  }, fakeAxios(() => Promise.resolve({ data: [] })));
+  const batch = {
+    entries: [{ sgv: 100 }],
+    treatments: [{ eventType: 'Correction Bolus' }],
+    devicestatus: [{ device: 'loop' }],
+    profiles: [{ defaultProfile: 'Default' }]
+  };
+
+  assert.deepEqual(source.transformGlucose(batch), batch);
 });

@@ -137,6 +137,8 @@ To sync from another Nightscout site, include `CONNECT_SOURCE_ENDPOINT` and
 * `CONNECT_SOURCE=nightscout`
 * `CONNECT_SOURCE_ENDPOINT=<URL>`
 * `CONNECT_SOURCE_API_SECRET=<OPTIONAL_API_SECRET>`
+* `CONNECT_SOURCE_COLLECTIONS=entries,treatments,devicestatus,profiles`
+* `CONNECT_SOURCE_MAX_COUNT=1000`
 
 The `CONNECT_SOURCE_ENDPOINT` must be a fully qualified URL and may contain a
 `?token=<subject>` query string to specify an accessToken.
@@ -146,6 +148,11 @@ the query will be used to read information from Nightscout and is optional if
 the site is readable by default.
 
 Select this driver by setting `CONNECT_SOURCE` equal to `nightscout`.
+
+The Nightscout source copies entries, treatments, devicestatus, and profiles by
+default. Set `CONNECT_SOURCE_COLLECTIONS` to a comma-separated subset if you
+only want specific collections. Each collection uses its own cursor from the
+destination output's gap analysis.
 
 
 
