@@ -16,8 +16,8 @@ point.
 * [x] Dexcom
 * [x] Glooko
   * [x] fetch data
-  * [x] translate data (likely needs work)
-* [x] LibreLinkUp (needs testing)
+  * [x] translate treatments and v2 CGM readings (experimental)
+* [x] LibreLinkUp
 * [x] ~~Medtronic~~
   * [x] hello world
   * [x] glucose, stub devicestatus
@@ -37,13 +37,27 @@ point.
 ## Help wanted
 * more vendors
 * better design suggestions
-* testing
+* testing, especially with real-world international accounts and version changes
 
 
 ## Brief Doc
 * `ENABLE=connect` include the keyword `connect` in the `ENABLE` list.
 * Environment variable prefix `CONNECT_`:
   * `CONNECT_SOURCE` - The name for the source of one of the supported inputs.  one of `nightscout`, `dexcomshare`, etc...
+
+## Testing
+
+The package has a Node test suite covering connector contracts and fake-server
+Nightscout connectivity paths:
+
+```
+npm install
+npm test
+```
+
+Current coverage includes Dexcom Share auth/session shapes, Nightscout
+source/output token flows, LibreLinkUp regional and timestamp behavior, and
+Glooko regional/device identity plus v2 CGM reading transforms.
 
 
 ## How to use
@@ -65,6 +79,11 @@ which variables to set.
 Running from the commandline for development purposes, as a sidecar, for
 example, use `npm install` and consider `npm ln` to place the
 `nightscout-connect` shell script in your path. Once in your path, it will offer `--help` for all subcommands.
+
+When using the external Nightscout output, provide:
+
+* `CONNECT_NIGHTSCOUT_ENDPOINT=<destination Nightscout URL>`
+* `CONNECT_API_SECRET=<destination Nightscout API secret>`
 
 
 ```
@@ -118,6 +137,8 @@ To sync from another Nightscout site, include `CONNECT_SOURCE_ENDPOINT` and
 * `CONNECT_SOURCE=nightscout`
 * `CONNECT_SOURCE_ENDPOINT=<URL>`
 * `CONNECT_SOURCE_API_SECRET=<OPTIONAL_API_SECRET>`
+* `CONNECT_SOURCE_COLLECTIONS=entries,treatments,devicestatus,profiles`
+* `CONNECT_SOURCE_MAX_COUNT=1000`
 
 The `CONNECT_SOURCE_ENDPOINT` must be a fully qualified URL and may contain a
 `?token=<subject>` query string to specify an accessToken.
@@ -127,6 +148,11 @@ the query will be used to read information from Nightscout and is optional if
 the site is readable by default.
 
 Select this driver by setting `CONNECT_SOURCE` equal to `nightscout`.
+
+The Nightscout source copies entries, treatments, devicestatus, and profiles by
+default. Set `CONNECT_SOURCE_COLLECTIONS` to a comma-separated subset if you
+only want specific collections. Each collection uses its own cursor from the
+destination output's gap analysis.
 
 
 
@@ -142,6 +168,11 @@ Optional, `CONNECT_SHARE_REGION` and `CONNECT_SHARE_SERVER` do the same thing, o
   Selecting `ous` here sets `CONNECT_SHARE_SERVER` to `shareous1.dexcom.com`.
 * `CONNECT_SHARE_SERVER=` set the server domain to use.
 
+Dexcom Share supports both older authentication responses that return a bare
+account ID and newer G7-era responses that return `{ accountId: "..." }`.
+Authentication and non-HTTP failures are surfaced to the state machine rather
+than treated as empty data.
+
 
 ### Glooko
 
@@ -152,17 +183,30 @@ To synchronize from Glooko use the following variables.
 * `CONNECT_GLOOKO_EMAIL=`
 * `CONNECT_GLOOKO_PASSWORD=`
 * `CONNECT_GLOOKO_TIMEZONE_OFFSET=0`
+* `CONNECT_GLOOKO_DEVICE_ID=` optional stable device identity
+* `CONNECT_GLOOKO_SERIAL_NUMBER=` optional stable serial number
+* `CONNECT_GLOOKO_WEB_ORIGIN=` optional web origin override for regional/custom hosts
+* `CONNECT_GLOOKO_AUTH_MODE=api` optional auth mode: `api`, `web`, or `auto`
+* `CONNECT_GLOOKO_USE_V3_GRAPH=true` optional v3 graph CGM fallback when v2 returns no readings
 
 By default, `CONNECT_GLOOKO_SERVER` is set to `api.glooko.com` because the
 default value for `CONNECT_GLOOKO_ENV` is `default`.
-* `CONNECT_GLOOKO_ENV` is the word `default` by defalt.  Other values are
+* `CONNECT_GLOOKO_ENV` is the word `default` by default.  Other values are
   `eu`, `development`, `production`, for `api.glooko.work`, and
   `externalapi.glooko.com`, respectively.
-* `CONNECT_GLOOKO_SERVER` the hostname server to use - `api.glooko.com` by `default`, or `eu.api.glooko.com` for EU users.
+* `CONNECT_GLOOKO_SERVER` the hostname server to use - `api.glooko.com` by `default`, `eu.api.glooko.com` for EU users, or a more specific regional host such as `de-fr.api.glooko.com`.
 * `CONNECT_GLOOKO_TIMEZONE_OFFSET` defines the time zone offset you are at from the UTC time zone, in hours
 
 If both, `CONNECT_GLOOKO_SERVER` and `CONNECT_GLOOKO_ENV` are set, only
 `CONNECT_GLOOKO_SERVER` will be used.
+
+Glooko uploads treatments and, when the v2 `cgm/readings` endpoint returns
+readings, CGM entries. Some EU accounts may require newer web-login or v3 graph
+flows. `CONNECT_GLOOKO_AUTH_MODE=web` uses Glooko's web sign-in form with CSRF
+token handling; `auto` tries API login first and falls back to web login on a
+422 response. The optional v3 graph fallback fetches `cgmHigh`, `cgmNormal`,
+and `cgmLow` series when v2 CGM readings are empty, using the same
+authenticated session cookie.
 
 ### Libre Link Up
 To synchronize from Libre Link Up use the following variables.
@@ -173,10 +217,20 @@ To synchronize from Libre Link Up use the following variables.
 By default, `CONNECT_LINK_UP_SERVER` is set to `api-eu.libreview.io` because the
 default value for `CONNECT_LINK_UP_REGION` is `EU`.
 Other available values for `CONNECT_LINK_UP_REGION`:
-  * `US`, `EU`, `DE`, `FR`, `JP`, `AP`, `AU`, `AE`
+  * `US`, `EU`, `EU2`, `DE`, `FR`, `JP`, `AP`, `AU`, `AE`, `CA`
+* `CONNECT_LINK_UP_SERVER` may be used to override the region mapping with an
+  explicit LibreView API host.
+* `CONNECT_LINK_UP_VERSION` and `CONNECT_LINK_UP_PRODUCT` may be used when
+  LibreLinkUp requires a newer client version or product identifier.
 
 For folks connected to many patients, you can provide the patient ID by setting
 the `CONNECT_LINK_UP_PATIENT_ID` variable.
+
+Optionally, you can override the default 5-minute refresh interval by providing
+`CONNECT_LINK_UP_INTERVAL` as an integer representing minutes.
+
+LibreLinkUp uploads graph readings and the current glucose item to avoid the
+historical graph delay. Nightscout duplicate handling is relied on for overlap.
 
 ### Minimed Carelink
 
@@ -225,5 +279,3 @@ encourage migration away from `share2nightscout-bridge`:
 * Safe community: There are now randomization behaviors to prevent tragedy of
   the commons from occurring.  These features help spread the load to avoid
   accidentally overwhelming vendor servers.
-
-
