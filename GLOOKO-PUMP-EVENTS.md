@@ -61,13 +61,25 @@ and raises the STOP timer from 5 minutes to 24 hours.
 
 ---
 
-## Known limitation
+## Deduplication
 
-Pump events and alarms are filtered against the same timestamp cursor as
-treatments. Glooko's sync lag is ~40 minutes, so an alarm that fires *before* a
-bolus but syncs *after* it will be skipped. The robust fix is to deduplicate on
-Glooko's own `guid` rather than a timestamp — which is what Taylor's
-independent `glooko-bridge` already does.
+Pump events and alarms are deduplicated on **Glooko's own `guid`**, not on a
+timestamp. Glooko's sync lag is around 40 minutes, so an event can arrive after
+a bolus that happened later than it — against a time cursor that event falls
+behind the mark and is skipped for good.
+
+Each generated treatment carries `glookoGuid`. The output layer seeds the known
+set from Nightscout at startup (45-day window) and adds to it as it posts, so a
+restart does not re-import everything inside the fetch window.
+
+Measured on a live instance: the first run after adopting this imported 80
+treatments (nothing carried a guid yet), the next run seeded 74 guids and
+imported 6, and the one after that imported 1 — a genuinely new bolus.
+
+⚠️ Event types the converter does not map — `prime_cannula`, `prime_tubing`,
+`pod_deactivated`, `pod_discarded` — are never stored, so they never enter the
+guid set and are re-examined every cycle. They produce no treatments, so this
+is log noise rather than a correctness problem.
 
 ## Nightscout configuration (not code)
 
