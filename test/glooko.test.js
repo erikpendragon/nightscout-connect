@@ -386,6 +386,13 @@ test('Glooko data fetch adds v3 graph fallback when v2 CGM readings are empty', 
       assert.doesNotMatch(call.path, /series%5B%5D/);
       return Promise.resolve({ data: { series: { cgmNormal: [{ x: 1760000000, value: 12345 }] } } });
     }
+    // The pump-event, alarm and food collections are fetched over their own
+    // wide window with a bare path. Answer them emptily so tests that are not
+    // about them do not have to care.
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses)|foods)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ],
+                                       normalBoluses: [ ], scheduledBasals: [ ] } });
+    }
     throw new Error('unexpected path ' + call.path);
   }));
 
@@ -395,7 +402,7 @@ test('Glooko data fetch adds v3 graph fallback when v2 CGM readings are empty', 
   }, { entries: new Date('2025-10-09T08:48:20.000Z') });
 
   assert.deepEqual(batch.v3Graph, { series: { cgmNormal: [{ x: 1760000000, value: 12345 }] } });
-  assert.equal(calls.length, 4);
+  assert.equal(calls.filter(function (c) { return c.path.includes('?'); }).length, 4);
 });
 
 test('Glooko data fetch can resolve patient code from v3 session profile before graph fallback', async () => {
@@ -427,6 +434,13 @@ test('Glooko data fetch can resolve patient code from v3 session profile before 
       assertHasNoV2SyncParams(call);
       assert.match(call.path, /patient=patient-from-profile/);
       return Promise.resolve({ data: { series: { cgmNormal: [{ x: 1760000000, value: 12345 }] } } });
+    }
+    // The pump-event, alarm and food collections are fetched over their own
+    // wide window with a bare path. Answer them emptily so tests that are not
+    // about them do not have to care.
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses)|foods)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ],
+                                       normalBoluses: [ ], scheduledBasals: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
   }));
@@ -464,4 +478,108 @@ test('Glooko transform tolerates missing readings', () => {
   }, fakeAxios(() => Promise.resolve({ data: {} })));
 
   assert.deepEqual(source.transformData({}), { entries: [], treatments: [] });
+});
+
+test('Glooko incremental fetch uses the treatment bookmark when glucose is newer', async () => {
+  const calls = [];
+  const treatmentBookmark = new Date(Date.now() - (3 * 60 * 60 * 1000));
+  const entryBookmark = new Date(Date.now() - (5 * 60 * 1000));
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'test-password',
+    baseURL: 'https://api.glooko.com'
+  }, fakeAxios((call) => {
+    calls.push(call);
+    if (call.path.startsWith('/api/v2/pumps/scheduled_basals')) {
+      return Promise.resolve({ data: { scheduledBasals: [] } });
+    }
+    if (call.path.startsWith('/api/v2/pumps/normal_boluses')) {
+      return Promise.resolve({ data: { normalBoluses: [] } });
+    }
+    if (call.path.startsWith('/api/v2/cgm/readings')) {
+      return Promise.resolve({ data: { readings: [] } });
+    }
+    // The pump-event, alarm and food collections are fetched over their own
+    // wide window with a bare path. Answer them emptily so tests that are not
+    // about them do not have to care.
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses)|foods)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ],
+                                       normalBoluses: [ ], scheduledBasals: [ ] } });
+    }
+    throw new Error('unexpected path ' + call.path);
+  }));
+
+  await source.dataFromSesssion({
+    cookies: '_logbook-web_session=test-session',
+    user: { userLogin: { glookoCode: 'test-patient' } }
+  }, {
+    entries: entryBookmark,
+    treatments: treatmentBookmark
+  });
+
+  // The wide pump-event and food fetches use bare paths and a fixed window of
+  // their own; this test is about the per-collection cursors, so look only at
+  // the calls that carry one.
+  const cursorCalls = calls.filter(function (c) { return c.path.includes('?'); });
+  assert.equal(cursorCalls.length, 3);
+  for (const call of cursorCalls) {
+    const isTreatmentRequest = call.path.startsWith('/api/v2/pumps/');
+    const expectedBookmark = isTreatmentRequest ? treatmentBookmark : entryBookmark;
+    assert.equal(call.options.params.lastUpdatedAt, expectedBookmark.toISOString());
+    if (isTreatmentRequest) {
+      assert.ok(call.options.params.limit >= 35, `expected a treatment-sized window, got ${call.options.params.limit}`);
+    } else {
+      assert.ok(call.options.params.limit <= 2, `expected an entry-sized window, got ${call.options.params.limit}`);
+    }
+  }
+});
+
+test('Glooko authentication and fetch logs omit session and patient identifiers', async () => {
+  const originalLog = console.log;
+  const logged = [];
+  console.log = (...args) => logged.push(args.map((arg) => {
+    if (typeof arg === 'string') return arg;
+    try { return JSON.stringify(arg); } catch (_) { return String(arg); }
+  }).join(' '));
+
+  try {
+    const source = glookoSource({
+      glookoEmail: 'user@example.com',
+      glookoPassword: 'test-password',
+      baseURL: 'https://api.glooko.com'
+    }, fakeAxios((call) => {
+      if (call.method === 'post') {
+        return Promise.resolve({
+          headers: { 'set-cookie': ['_logbook-web_session=private-cookie; path=/'] },
+          data: { userLogin: { glookoCode: 'private-patient-code' } }
+        });
+      }
+      if (call.path.startsWith('/api/v2/pumps/scheduled_basals')) {
+        return Promise.resolve({ data: { scheduledBasals: [] } });
+      }
+      if (call.path.startsWith('/api/v2/pumps/normal_boluses')) {
+        return Promise.resolve({ data: { normalBoluses: [] } });
+      }
+      if (call.path.startsWith('/api/v2/cgm/readings')) {
+        return Promise.resolve({ data: { readings: [] } });
+      }
+      // The pump-event, alarm and food collections are fetched over their own
+    // wide window with a bare path. Answer them emptily so tests that are not
+    // about them do not have to care.
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses)|foods)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ],
+                                       normalBoluses: [ ], scheduledBasals: [ ] } });
+    }
+    throw new Error('unexpected path ' + call.path);
+    }));
+
+    const session = await source.authFromCredentials();
+    await source.dataFromSesssion(session, null);
+  } finally {
+    console.log = originalLog;
+  }
+
+  const output = logged.join('\n');
+  assert.doesNotMatch(output, /private-cookie/);
+  assert.doesNotMatch(output, /private-patient-code/);
 });

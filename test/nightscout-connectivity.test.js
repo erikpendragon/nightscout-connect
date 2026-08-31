@@ -124,7 +124,11 @@ test('Nightscout source/output round-trips a full-sync fixture shape', async () 
       'POST /api/v1/devicestatus.json',
       'POST /api/v1/profile.json'
     ]);
-    assert.deepEqual(bookmark, {
+    // seenGuids and lastDeviceStatus are persisted alongside the collection
+    // cursors by the Glooko pump-event import; this assertion is about the
+    // cursors, so compare only those.
+    const { seenGuids, lastDeviceStatus, ...cursors } = bookmark;
+    assert.deepEqual(cursors, {
       entries: new Date('2025-10-09T08:53:20.000Z'),
       treatments: new Date('2025-10-09T08:54:20.000Z'),
       devicestatus: new Date('2025-10-09T08:55:20.000Z'),
@@ -253,7 +257,8 @@ test('Nightscout output posts all collections with hashed API secret', async () 
       'POST /api/v1/devicestatus.json',
       'POST /api/v1/profile.json'
     ]);
-    assert.deepEqual(bookmark, {
+    const { seenGuids, lastDeviceStatus, ...cursors } = bookmark;
+    assert.deepEqual(cursors, {
       entries: new Date('2025-10-09T08:53:20.000Z'),
       devicestatus: new Date('2025-10-09T08:55:20.000Z'),
       profiles: new Date('2025-10-09T08:56:20.000Z')
