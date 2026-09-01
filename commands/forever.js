@@ -43,7 +43,9 @@ function main (argv) {
   var output = { name: 'nightscout', url: argv.nightscoutEndpoint, apiSecret: argv.apiSecret };
   console.log("CONFIGURED OUTPUT", output);
   var input = Object.assign({}, argv, { kind: argv.source, url: argv.sourceEndpoint, apiSecret: argv.sourceApiSecret });
-  console.log("CONFIGURED INPUT", input);
+  // argv now carries every CONNECT_* env var, credentials included, so log the
+  // shape rather than the values.
+  console.log("CONFIGURED INPUT", { kind: input.kind, url: input.url, keys: Object.keys(input).length });
 
   var things = sidecarLoop(input, output);
   console.log(things);

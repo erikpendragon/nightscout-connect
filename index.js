@@ -13,6 +13,9 @@ var sources = require('./lib/sources');
 var outputs = require('./lib/outputs');
 
 
+// Redact credentials and personal data from every console write. See lib/log-scrub.js.
+require('./lib/log-scrub').install( );
+
 function internalLoop (input, output) {
 }
 

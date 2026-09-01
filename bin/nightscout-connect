@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 
+// must load before anything that can log
+require('../lib/log-scrub').install( );
+
 var argv = require('yargs')
   .scriptName('nightscout-connect')
   .usage('$0 <cmd> [args]')
