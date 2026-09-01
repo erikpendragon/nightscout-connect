@@ -1,14 +1,13 @@
-# nightscout-connect patches
+# Glooko: pump events, alarms and guid deduplication
 
-Changes made to **nightscout-connect** (not Nightscout itself) to get Omnipod 5
-pod/sensor/reservoir changes and pump alarms out of Glooko and into Nightscout.
+Gets Omnipod 5 pod, sensor and reservoir changes, plus the pump's own alarm log,
+out of Glooko and into Nightscout — so the `cage`, `sage` and `iage` plugins
+populate from the pump's own record instead of needing someone to log changes by
+hand in careportal.
 
-`glooko-pump-events.patch` applies cleanly to a fresh checkout of
-`nightscout/nightscout-connect` **main**. 190 changed lines across three files.
-
-**Nightscout core is untouched.** Everything done there was environment
-variables in `docker-compose.yml` — listed at the bottom so they can be
-reproduced, but they are configuration, not code.
+Nightscout core is untouched; this is entirely within the Glooko source driver,
+the converter and the Nightscout output. Enabling the resulting plugins is
+ordinary Nightscout configuration and is out of scope here.
 
 ---
 
@@ -26,7 +25,7 @@ whose `lastUpdatedAt` is pinned near *now* and whose `limit` collapses to
 roughly zero. Against these endpoints that returns an empty array, which looks
 exactly like "no data". `eventsFetcher()` uses a separate 14-day window.
 
-**DST-correct timestamps.** `CONNECT_GLOOKO_TIMEZONE` (e.g. `America/Toronto`)
+**DST-correct timestamps.** `CONNECT_GLOOKO_TIMEZONE` (e.g. `Europe/Prague`)
 drives a per-timestamp `moment-timezone` conversion. The existing
 `CONNECT_GLOOKO_TIMEZONE_OFFSET` is a fixed hour offset that is right for half
 the year and silently an hour wrong for the other half. The offset remains as a
@@ -81,21 +80,13 @@ imported 6, and the one after that imported 1 — a genuinely new bolus.
 guid set and are re-examined every cycle. They produce no treatments, so this
 is log noise rather than a correctness problem.
 
-## Nightscout configuration (not code)
+## Note on enabling the plugins
 
-```yaml
-BG_LOW: "55"            # mg/dL regardless of DISPLAY_UNITS
-BG_TARGET_BOTTOM: "70"
-BG_TARGET_TOP: "198"
-BG_HIGH: "260"
-SHOW_PLUGINS: careportal basal iob cob cage sage iage bolus dbsize
-CAGE_INFO/WARN/URGENT: 60 / 68 / 72      # Omnipod 72h
-IAGE_INFO/WARN/URGENT: 60 / 68 / 72
-SAGE_INFO/WARN/URGENT: 216 / 236 / 240   # Dexcom G7 10 days
-CONNECT_GLOOKO_TIMEZONE: America/Toronto
-THEME: colors
-```
+The wear-time plugins (`cage`, `sage`, `iage`) have to be in both `ENABLE` and
+`SHOW_PLUGINS`, and pod/sensor lifetimes differ from Nightscout's defaults — an
+Omnipod runs 72 h against a default that assumes a 3-day infusion set, and a
+Dexcom G7 runs 10 days against a default that assumes a 7-day G6.
 
-⚠️ `SHOW_PLUGINS` is only a *default* for browsers that have never saved
-settings. Once a browser saves any setting its local list wins permanently —
-use **Settings → "Reset, and use defaults"** in each browser after changing it.
+`SHOW_PLUGINS` is only a *default* for browsers that have never saved settings.
+Once a browser saves any setting its local list wins permanently — use
+**Settings -> "Reset, and use defaults"** in that browser after changing it.
