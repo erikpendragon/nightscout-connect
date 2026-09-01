@@ -26,7 +26,7 @@ whose `lastUpdatedAt` is pinned near *now* and whose `limit` collapses to
 roughly zero. Against these endpoints that returns an empty array, which looks
 exactly like "no data". `eventsFetcher()` uses a separate 14-day window.
 
-**DST-correct timestamps.** `CONNECT_GLOOKO_TIMEZONE` (e.g. `America/Toronto`)
+**DST-correct timestamps.** `CONNECT_GLOOKO_TIMEZONE` (e.g. `Europe/Prague`)
 drives a per-timestamp `moment-timezone` conversion. The existing
 `CONNECT_GLOOKO_TIMEZONE_OFFSET` is a fixed hour offset that is right for half
 the year and silently an hour wrong for the other half. The offset remains as a
@@ -83,18 +83,18 @@ is log noise rather than a correctness problem.
 
 ## Nightscout configuration (not code)
 
-```yaml
-BG_LOW: "55"            # mg/dL regardless of DISPLAY_UNITS
-BG_TARGET_BOTTOM: "70"
-BG_TARGET_TOP: "198"
-BG_HIGH: "260"
-SHOW_PLUGINS: careportal basal iob cob cage sage iage bolus dbsize
-CAGE_INFO/WARN/URGENT: 60 / 68 / 72      # Omnipod 72h
-IAGE_INFO/WARN/URGENT: 60 / 68 / 72
-SAGE_INFO/WARN/URGENT: 216 / 236 / 240   # Dexcom G7 10 days
-CONNECT_GLOOKO_TIMEZONE: America/Toronto
-THEME: colors
-```
+Specific values are deliberately omitted — see `NIGHTSCOUT-INSTALL-DELTA.md` for
+why. What matters is *which* settings need attention, not one deployment's
+numbers:
+
+- The four BG thresholds are stored in **mg/dL regardless of `DISPLAY_UNITS`**,
+  which is the usual place people go wrong. Use your own care team's targets.
+- `CAGE_*` / `IAGE_*` / `SAGE_*` wear-time bands default to a 3-day infusion set
+  and a 7-day G6. An Omnipod runs 72 h and a Dexcom G7 runs 10 days, so both
+  need raising or the pills sit permanently red.
+- The wear-time plugins must appear in **both** `ENABLE` and `SHOW_PLUGINS`.
+  Being in `ENABLE` alone computes them and shows nothing.
+- `CONNECT_GLOOKO_TIMEZONE` takes an IANA zone name for your location.
 
 ⚠️ `SHOW_PLUGINS` is only a *default* for browsers that have never saved
 settings. Once a browser saves any setting its local list wins permanently —
