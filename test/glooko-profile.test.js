@@ -205,3 +205,31 @@ test('the note repeats for the same snapshot, so the output layer can dedupe it'
   const noteB = b.treatments.find((t) => t.enteredBy === 'glooko-settings');
   assert.equal(noteA.glookoGuid, noteB.glookoGuid);
 });
+
+test('a snapshot already reported is not reported again', () => {
+  const guid = 'devicesettings-pump-a-2026-06-03T16:58:01.427Z';
+  const seen = { ...batchWithSettings, seenGuids: new Set([ guid + '-note', guid ]) };
+
+  const proposed = sourceWith('propose').transformData(seen);
+  assert.ok(!proposed.treatments.some((t) => t.enteredBy === 'glooko-settings'),
+            'the note is suppressed once Nightscout already has it');
+
+  const overridden = sourceWith('override').transformData(seen);
+  assert.ok(!overridden.profiles, 'an unchanged profile is not rewritten');
+});
+
+test('a new snapshot is reported even when older ones are known', () => {
+  const seen = { ...batchWithSettings
+               , seenGuids: new Set([ 'devicesettings-pump-a-2026-02-10T21:28:45.968Z-note' ]) };
+  const out = sourceWith('propose').transformData(seen);
+  assert.ok(out.treatments.some((t) => t.enteredBy === 'glooko-settings'),
+            'a change the clinician made since is still surfaced');
+});
+
+test('the note is dated when it is written, not when the pump changed', () => {
+  const out = sourceWith('propose').transformData(batchWithSettings);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  const age = Date.now() - new Date(note.eventTime).getTime();
+  assert.ok(age >= 0 && age < 60000, 'stamped now, so it lands where people look');
+  assert.match(note.notes, /last changed 2026-06-03/, 'the pump change date is in the text');
+});
