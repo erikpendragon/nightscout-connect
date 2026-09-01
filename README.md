@@ -253,9 +253,12 @@ units, and Nightscout converts for display. Set `CONNECT_GLOOKO_UNITS` to
 Settings are only requested when this is `propose` or `override`, so leaving it
 off adds no request to the polling cycle.
 
-> This reads `/api/v3/devices_and_settings`, which has been verified against a
-> single account and pump. If your pump reports a shape this does not
-> understand, the driver logs that it produced no profile and carries on.
+This reads `/api/v3/devices_and_settings`. Glooko carries many pumps and this
+has been verified against few, so it may not understand yours. If it cannot
+read your settings it posts a note saying so and naming the pump, and leaves
+the profile alone - the profile then stays yours to maintain by hand, which it
+already was, but you are told rather than left assuming otherwise. That note is
+also the useful bug report: it names the pump the driver could not read.
 
 ### Libre Link Up
 To synchronize from Libre Link Up use the following variables.

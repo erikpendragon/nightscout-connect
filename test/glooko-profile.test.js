@@ -233,3 +233,57 @@ test('the note is dated when it is written, not when the pump changed', () => {
   assert.ok(age >= 0 && age < 60000, 'stamped now, so it lands where people look');
   assert.match(note.notes, /last changed 2026-06-03/, 'the pump change date is in the text');
 });
+
+// --- pumps this driver does not understand ----------------------------------
+
+// A settings response whose schedule tree is in a shape the converter does not
+// recognise - which is what a pump other than the one this was written against
+// may well look like.
+const batchWithUnreadableSettings = {
+  readings: [ ]
+, deviceSettings: {
+    activePumpGuid: 'pump-z'
+  , devices: [ { type: 'pump', brand: 'Tandem', model: 't:slim X2', guid: 'pump-z' }
+             , { type: 'cgm', brand: 'Dexcom', model: 'Dexcom' } ]
+  , deviceSettings: { meters: { }, pumps: { 'pump-z': { '2026-06-03T16:58:01.427Z': {
+      generalSettings: { activeInsulinTime: 5 }
+    , somethingUnexpected: { schedules: [ ] }
+    } } } }
+  }
+};
+
+test('an unreadable pump says so, and names the pump', () => {
+  const out = sourceWith('propose').transformData(batchWithUnreadableSettings);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.ok(note, 'the wearer is told rather than left guessing');
+  assert.match(note.notes, /Tandem t:slim X2/, 'names the pump so it is actionable');
+  assert.match(note.notes, /maintained by hand/);
+  assert.ok(!out.profiles, 'and nothing is written');
+});
+
+test('override mode also reports a pump it cannot read', () => {
+  const out = sourceWith('override').transformData(batchWithUnreadableSettings);
+  assert.ok(out.treatments.some((t) => t.enteredBy === 'glooko-settings'));
+  assert.ok(!out.profiles);
+});
+
+test('off mode stays silent even about a pump it could not read', () => {
+  const out = sourceWith('off').transformData(batchWithUnreadableSettings);
+  assert.ok(!out.treatments.some((t) => t.enteredBy === 'glooko-settings'));
+});
+
+test('the unreadable note is said once per pump, not once per poll', () => {
+  const seen = { ...batchWithUnreadableSettings
+               , seenGuids: new Set([ 'devicesettings-unreadable-pump-z' ]) };
+  const out = sourceWith('propose').transformData(seen);
+  assert.ok(!out.treatments.some((t) => t.enteredBy === 'glooko-settings'));
+});
+
+test('an unnamed pump still produces a usable message', () => {
+  const anon = { readings: [ ]
+               , deviceSettings: { deviceSettings: { pumps: { p: { '2026-01-01T00:00:00.000Z': { } } } } } };
+  const out = sourceWith('propose').transformData(anon);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.ok(note);
+  assert.match(note.notes, /the pump on this account/);
+});
