@@ -187,12 +187,18 @@ maintained by hand when it does. The procedure:
 ```bash
 git remote add upstream https://github.com/nightscout/nightscout-connect.git
 git fetch upstream
-git checkout integration
+git checkout main
 git merge upstream/main          # merge, do NOT rebase - see below
 npm test                          # must stay green
 # deploy, confirm the feed is still flowing, then:
-git checkout main && git merge --ff-only integration && git push origin main
+git push origin main
 ```
+
+`main` is the only long-lived branch here. An earlier `integration` branch
+staged upstream merges before fast-forwarding `main`; it never once diverged
+from `main`, so it bought nothing and gave people a second name to deploy by
+mistake. If you want a scratch branch to resolve a messy merge on, cut one
+locally and delete it afterwards — it does not need to be published.
 
 **Merge rather than rebase.** Four upstream pull requests (#55, #56, #58, #60)
 are merged into this branch locally so they can run together before they land.
