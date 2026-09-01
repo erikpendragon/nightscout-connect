@@ -105,6 +105,77 @@ turned off. `GLOOKO-STANDALONE-BRIDGE.md` describes an independent bridge that
 reaches several of the same conclusions by a different route, and where the two
 designs agree and differ.
 
+## Migrating from your own Glooko bridge
+
+Nothing here rewrites history. The Glooko source fetches a **two day** window
+per cycle (`two_days_ago`, `lib/sources/glooko/index.js`) — it is a live feed,
+not a backfill tool. Everything already in your database stays as it is.
+
+On startup the Nightscout output **seeds its dedup set from what you already
+have**: up to 500 treatments from the last 45 days, collecting their
+`glookoGuid`. Because the seed window is far wider than the fetch window,
+anything it could re-pull is already known to it — *provided your bridge writes
+that same field*. That is the one thing to check before you start.
+
+### 1. Back up
+
+```bash
+mongodump --uri "$MONGO_URI" --out ~/ns-backup-$(date +%F)
+```
+
+### 2. Confirm the guid field name — blocking
+
+```bash
+curl -s "$NS/api/v1/treatments.json?count=5" \
+  | jq '.[] | {created_at, eventType, glookoGuid}'
+```
+
+If `glookoGuid` is present, continue. If it is `null` or absent, **stop** — your
+bridge stores the guid under a different key, the seed will match nothing, and
+the fork will re-import the last two days as duplicates. Either rename the field
+on existing records first, or accept and clean up two days of overlap knowingly.
+
+### 3. Stop your bridge — disable, do not uninstall
+
+It is your rollback. Confirm it has actually stopped, by watching for new
+treatments to cease, before going on. Running both against one Nightscout
+double-posts every treatment.
+
+### 4. Deploy this fork on branch `main`
+
+Config keys: `CONNECT_SOURCE=glooko`, `CONNECT_GLOOKO_EMAIL`,
+`CONNECT_GLOOKO_PASSWORD`, `CONNECT_GLOOKO_ENV` (region),
+`CONNECT_GLOOKO_TIMEZONE`, `CONNECT_GLOOKO_TIMEZONE_OFFSET`,
+`CONNECT_NIGHTSCOUT_ENDPOINT`, `API_SECRET`.
+
+**Leave `CONNECT_GLOOKO_SKIP_ENTRIES` set** if your CGM already arrives by
+another route — a Dexcom Share connector, say. Glooko carries the same Dexcom
+readings, and importing both produces a duplicate glucose row every five
+minutes. This is not theoretical; it has been done, and it took a purge to undo.
+
+### 5. Watch the first cycle
+
+```
+SEEDED <n> known source guids
+RECORD BATCH with <e> entries, <t> treatments, <d> devicestatus, <p> profiles
+```
+
+If `n` is 0, or the SEEDED line never appears at all, stop and go back to step 2.
+
+### 6. Verify
+
+- Treatment count should rise by roughly what two days actually contains, not by
+  a doubling.
+- `devicestatus` device name changes from your bridge's to `glooko (<pump>)`.
+- `Site Change`, `Sensor Start` and `Insulin Change` treatments begin appearing.
+  These are new — your bridge did not import them. They need `cage sage iage` in
+  `SHOW_PLUGINS` before the wear-time pills will render.
+
+### Rollback
+
+Stop this, re-enable your bridge. Records written here carry `glookoGuid`, so a
+guid-deduping bridge will not duplicate them on the way back either.
+
 ## Tracking upstream
 
 Currently based on upstream `b394411` (*Merge pull request #26 from
