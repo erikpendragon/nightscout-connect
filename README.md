@@ -188,6 +188,9 @@ To synchronize from Glooko use the following variables.
 * `CONNECT_GLOOKO_WEB_ORIGIN=` optional web origin override for regional/custom hosts
 * `CONNECT_GLOOKO_AUTH_MODE=api` optional auth mode: `api`, `web`, or `auto`
 * `CONNECT_GLOOKO_USE_V3_GRAPH=true` optional v3 graph CGM fallback when v2 returns no readings
+* `CONNECT_GLOOKO_SKIP_ENTRIES=false` optional; import treatments but not CGM entries
+* `CONNECT_GLOOKO_PROFILE_SYNC=off` optional; `off`, `propose` or `override` - see below
+* `CONNECT_GLOOKO_UNITS=` optional; the units your Glooko account displays, if Nightscout differs
 
 By default, `CONNECT_GLOOKO_SERVER` is set to `api.glooko.com` because the
 default value for `CONNECT_GLOOKO_ENV` is `default`.
@@ -207,6 +210,52 @@ token handling; `auto` tries API login first and falls back to web login on a
 422 response. The optional v3 graph fallback fetches `cgmHigh`, `cgmNormal`,
 and `cgmLow` series when v2 CGM readings are empty, using the same
 authenticated session cookie.
+
+#### Skipping CGM entries
+
+`CONNECT_GLOOKO_SKIP_ENTRIES=true` imports treatments but not glucose. Set it
+when readings already reach Nightscout by another route - a Dexcom Share or
+Libre Link Up source on the same instance. Glooko carries the same readings, so
+importing both writes a duplicate glucose row every five minutes: the values
+agree, so averages survive, but anything counting readings is inflated and the
+duplicates have to be purged by hand afterwards.
+
+#### Pump settings
+
+Glooko carries the pump's own therapy settings - insulin duration, carb ratio,
+correction factor, targets and the basal schedule - together with a timestamp
+for each time they were changed. Nightscout keeps the same numbers in a
+profile, and they are usually typed in by hand, so the two drift apart quietly
+and an IOB figure can be wrong for months without anyone noticing.
+
+`CONNECT_GLOOKO_PROFILE_SYNC` decides what to do about that:
+
+* `off` - the default. Does nothing, and does not request the settings at all.
+* `propose` - posts a Note saying what the pump holds, and writes nothing else.
+  Compare it against your profile and decide for yourself.
+* `override` - writes the pump's settings into the Nightscout profile.
+
+Start with `propose`. A profile feeds the bolus wizard, so this is the only
+part of the driver that writes a therapy input rather than a record of
+something that already happened.
+
+The note and the profile are both tied to the settings snapshot they came from,
+so an unchanged pump is reported once rather than on every poll, while a change
+your clinic makes later still surfaces. The note is dated when it is written,
+not when the pump was changed, so it appears where you will actually see it;
+the date the settings last changed is in its text.
+
+Values are used exactly as Glooko reports them and are never converted. Glooko
+returns them in whatever units the account displays, the profile records those
+units, and Nightscout converts for display. Set `CONNECT_GLOOKO_UNITS` to
+`mmol` or `mg/dl` if your Glooko account and your Nightscout disagree.
+
+Settings are only requested when this is `propose` or `override`, so leaving it
+off adds no request to the polling cycle.
+
+> This reads `/api/v3/devices_and_settings`, which has been verified against a
+> single account and pump. If your pump reports a shape this does not
+> understand, the driver logs that it produced no profile and carries on.
 
 ### Libre Link Up
 To synchronize from Libre Link Up use the following variables.
