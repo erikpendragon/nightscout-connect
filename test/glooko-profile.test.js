@@ -114,3 +114,94 @@ test('follows activePumpGuid when more than one pump is present', () => {
   assert.equal(store.carbratio[0].value, 12, 'ignores the newer non-active pump');
   assert.equal(store.dia, 4);
 });
+
+// --- wiring: the three profile-sync modes -----------------------------------
+
+const glookoSource = require('../lib/sources/glooko');
+
+function fakeAxios (handler) {
+  return {
+    create () {
+      return {
+        get (path, options) { return handler({ method: 'get', path, options }); },
+        post (path, body, options) { return handler({ method: 'post', path, body, options }); }
+      };
+    }
+  };
+}
+
+function sourceWith (mode) {
+  return glookoSource({
+    glookoEmail: 'someone@example.com'
+  , glookoPassword: 'secret'
+  , glookoServer: 'api.glooko.com'
+  , glookoTimezoneOffset: 0
+  , glookoProfileSync: mode
+  , glookoUnits: 'mmol'
+  , baseURL: 'https://api.glooko.com'
+  }, fakeAxios(() => Promise.resolve({ data: { } })));
+}
+
+const batchWithSettings = {
+  readings: [ ]
+  // shaped like the /api/v3/devices_and_settings response, which nests the
+  // schedule tree one level down under its own deviceSettings key
+, deviceSettings: {
+    activePumpGuid: 'pump-a'
+  , deviceSettings: { meters: { }, pumps: { 'pump-a': { '2026-06-03T16:58:01.427Z': {
+      generalSettings: { activeInsulinTime: 4 }
+    , profilesBolus: [ {
+        isfSegments: { current: true, data: [ { segmentStart: 0, duration: 24, value: 3.7 } ] }
+      , insulinToCarbRatioSegments: { current: true, data: [ { segmentStart: 0, duration: 24, value: 12 } ] }
+      , targetBgSegments: { current: true, data: [ { segmentStart: 0, duration: 24, value: 6.7, valueLow: 0, valueHigh: 0 } ] }
+      } ]
+    , pumpProfilesBasal: [ { segments: { current: true, data: [ { segmentStart: 0, duration: 24, value: 0.55 } ] } } ]
+    } } } }
+  }
+};
+
+test('override mode writes a profile', () => {
+  const out = sourceWith('override').transformData(batchWithSettings);
+  assert.equal(out.profiles.length, 1);
+  const store = out.profiles[0].store[out.profiles[0].defaultProfile];
+  assert.equal(store.dia, 4);
+  assert.equal(store.carbratio[0].value, 12);
+  assert.equal(store.units, 'mmol');
+  assert.ok(!out.treatments.some((t) => t.enteredBy === 'glooko-settings'), 'no note in override mode');
+});
+
+test('propose mode writes a note and no profile', () => {
+  const out = sourceWith('propose').transformData(batchWithSettings);
+  assert.ok(!out.profiles, 'nothing is written to the profile');
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.ok(note, 'a note describing the settings is posted');
+  assert.equal(note.eventType, 'Note');
+  assert.match(note.notes, /DIA 4 h/);
+  assert.match(note.notes, /carb ratio 12 g\/U/);
+  assert.match(note.glookoGuid, /-note$/);
+});
+
+test('off, and anything unrecognised, does neither', () => {
+  for (const mode of [ 'off', undefined, '', 'yes', 'true' ]) {
+    const out = sourceWith(mode).transformData(batchWithSettings);
+    assert.ok(!out.profiles, 'no profile for mode ' + JSON.stringify(mode));
+    assert.ok(!out.treatments.some((t) => t.enteredBy === 'glooko-settings'),
+              'no note for mode ' + JSON.stringify(mode));
+  }
+});
+
+test('a batch with no settings in it is harmless in every mode', () => {
+  for (const mode of [ 'off', 'propose', 'override' ]) {
+    const out = sourceWith(mode).transformData({ readings: [ ] });
+    assert.ok(!out.profiles);
+    assert.ok(Array.isArray(out.treatments));
+  }
+});
+
+test('the note repeats for the same snapshot, so the output layer can dedupe it', () => {
+  const a = sourceWith('propose').transformData(batchWithSettings);
+  const b = sourceWith('propose').transformData(batchWithSettings);
+  const noteA = a.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  const noteB = b.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.equal(noteA.glookoGuid, noteB.glookoGuid);
+});
