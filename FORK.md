@@ -7,6 +7,11 @@ together before they land.
 Upstream is `nightscout/nightscout-connect`. Nothing here changes Nightscout
 itself.
 
+It exists mainly to serve
+[nightscout-tdisplay](https://github.com/erikpendragon/nightscout-tdisplay),
+whose wear-time page needs the pump events that stock nightscout-connect never
+fetches — but the fixes stand on their own and are useful without the display.
+
 ## Which branch
 
 **`main`** — use this. It is upstream plus everything below, and it is what runs
@@ -99,3 +104,38 @@ against the same Nightscout will double-post treatments unless one of them is
 turned off. `GLOOKO-STANDALONE-BRIDGE.md` describes an independent bridge that
 reaches several of the same conclusions by a different route, and where the two
 designs agree and differ.
+
+## Tracking upstream
+
+Currently based on upstream `b394411` (*Merge pull request #26 from
+nightscout/dev*, 2026-07-07), with **0** upstream commits not yet incorporated.
+
+Upstream moves in infrequent bursts rather than continuously, so this is
+maintained by hand when it does. The procedure:
+
+```bash
+git remote add upstream https://github.com/nightscout/nightscout-connect.git
+git fetch upstream
+git checkout integration
+git merge upstream/main          # merge, do NOT rebase - see below
+npm test                          # must stay green
+# deploy, confirm the feed is still flowing, then:
+git checkout main && git merge --ff-only integration && git push origin main
+```
+
+**Merge rather than rebase.** Four upstream pull requests (#55, #56, #58, #60)
+are merged into this branch locally so they can run together before they land.
+If any of them is merged upstream, a `merge` recognises the shared history and
+the local merge quietly becomes redundant. A `rebase` would replay those changes
+on top of an upstream that already contains them, and the conflicts are
+unpleasant.
+
+`lib/sources/glooko/index.js` and `lib/sources/glooko/convert.js` carry the bulk
+of the changes and are where conflicts will land if upstream touches the Glooko
+driver.
+
+**Verify it runs, not just that it builds.** A green test suite is necessary and
+not sufficient here — an optional `require` behind a `try/catch` can leave a
+feature completely inert while every test still passes. After an upstream merge,
+confirm that treatments are actually arriving and that `cage`/`sage`/`iage`
+still populate, not merely that the process starts.
