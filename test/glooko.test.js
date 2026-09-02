@@ -1001,11 +1001,13 @@ test('Glooko transform maps a daily step record to an Exercise treatment at the 
       { timestamp: '2026-08-31T23:59:59.999Z', utcOffset: '-04:00', source: 'applehealth', steps: 8412.3, duration: 0,
         distance: null, calories: null, floors: null, elevation: null, guid: 'day-1' },
       { timestamp: '2026-08-30T23:59:59.999Z', source: 'applehealth', steps: 0, guid: 'day-zero' },
+      { timestamp: new Date(Date.now() + 60 * 60 * 1000).toISOString(), source: 'applehealth', steps: 3000, guid: 'day-today' },
       { timestamp: '2026-08-29T23:59:59.999Z', source: 'garmin', steps: 12000, duration: 3600, distance: 9.1, calories: 480, guid: 'day-2' }
     ]
   });
 
   const ex = result.treatments.filter(function (t) { return t.eventType === 'Exercise'; });
+  // day-zero has no steps; day-today's end-of-day stamp is still in the future
   assert.deepEqual(ex.map(function (t) { return t.glookoGuid; }), [ 'day-1', 'day-2' ]);
   assert.equal(ex[0].eventTime, '2026-09-01T03:59:59.999Z');
   assert.equal(ex[0].notes, 'Daily steps: 8412 (applehealth)');
