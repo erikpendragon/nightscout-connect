@@ -195,8 +195,10 @@ To synchronize from Glooko use the following variables.
 By default, `CONNECT_GLOOKO_SERVER` is set to `api.glooko.com` because the
 default value for `CONNECT_GLOOKO_ENV` is `default`.
 * `CONNECT_GLOOKO_ENV` is the word `default` by default.  Other values are
-  `eu`, `development`, `production`, for `api.glooko.work`, and
-  `externalapi.glooko.com`, respectively.
+  `eu`, `ca`, `development` (`api.glooko.work`) and `production`
+  (`externalapi.glooko.com`). `production` is misnamed: that host is Glooko's
+  partner gateway, which wants a partner JWT and API key and answers 401 to an
+  email-and-password login. Consumer accounts should use `default`, `eu` or `ca`.
 * `CONNECT_GLOOKO_SERVER` the hostname server to use - `api.glooko.com` by `default`, `eu.api.glooko.com` for EU users, or a more specific regional host such as `de-fr.api.glooko.com`.
 * `CONNECT_GLOOKO_TIMEZONE_OFFSET` defines the time zone offset you are at from the UTC time zone, in hours
 

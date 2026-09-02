@@ -68,6 +68,43 @@ instance whose CGM arrives elsewhere; treatments and device status still flow.
 **Food import**, as `Note` rather than carb treatments — the bolus already
 carries `carbsInput` and a second carb entry would double-count into COB.
 
+**Every collection Glooko's consumer API exposes.** Stock nightscout-connect
+requests three: scheduled basals, normal boluses and CGM readings. `main`
+requests seventeen per poll. What each becomes in Nightscout:
+
+| Glooko collection | Nightscout record |
+|---|---|
+| `pumps/normal_boluses` | `Meal Bolus` / `Correction Bolus`, plus `devicestatus` IOB |
+| `pumps/scheduled_basals` | `Temp Basal` at the programmed rate |
+| `pumps/suspend_basals` | `Temp Basal` at 0 U/h for the suspension |
+| `pumps/temporary_basals` | `Temp Basal`, absolute rate or relative percent |
+| `pumps/extended_boluses` | `Combo Bolus` with split, duration and rate |
+| `pumps/events` | `Site Change` / `Sensor Start` / `Insulin Change` |
+| `pumps/alarms` | `Note` |
+| `pumps/readings`, `readings` (meter) | `BG Check` |
+| `cgm/readings` | `entries`, unless `CONNECT_GLOOKO_SKIP_ENTRIES` |
+| `cgm/insulin_events`, `cgm/carbs_events`, `foods` | `Note` |
+| `blood_pressures` | `Note` with the values in `glookoBloodPressure` |
+| `/api/v3/devices_and_settings` | Nightscout `profile`, or a `Note` proposing one |
+
+Every record carries `glookoGuid` and an `enteredBy` naming its source, and is
+dated at the pump's own timestamp. On an Omnipod 5 in Automated Mode several of
+these collections are empty by nature — temp basals, extended boluses and manual
+suspends are Manual Mode features — so their mappers were written against
+Glooko's official Direct API dictionaries rather than live records, and the
+batch log prints the first record's keys when one arrives. `GLOOKO-COLLECTIONS.md`
+has the full account: how the official documentation maps onto the consumer
+API, the envelope and parameters, units, and the status of each mapper.
+
+**Pump therapy settings → Nightscout profile.** Glooko carries the pump's own
+insulin duration, carb ratio, correction factor, targets and basal schedule.
+`CONNECT_GLOOKO_PROFILE_SYNC=propose` posts a `Note` saying what the pump
+holds; `override` writes them into the Nightscout profile. Read from
+`/api/v3/devices_and_settings`; see the README and `GLOOKO-DEVICE-SETTINGS.md`.
+The stock driver's `PumpSettings` constant pointed at Glooko's *partner*
+gateway path, which answers 401 to a consumer login; it now names the consumer
+twin, though the v3 endpoint remains the one actually read.
+
 ## Upstream PRs merged here
 
 | | |
@@ -90,8 +127,9 @@ land upstream these merges become no-ops.
 ## Deploying it
 
 See `GLOOKO-PUMP-EVENTS.md` for what the patch does and which Nightscout
-settings need attention, and `NIGHTSCOUT-INSTALL-DELTA.md` for everything in a
-working deployment that is not stock.
+settings need attention, `GLOOKO-COLLECTIONS.md` for every collection the
+driver requests and what it becomes, and `NIGHTSCOUT-INSTALL-DELTA.md` for
+everything in a working deployment that is not stock.
 
 Configuration *values* — thresholds, targets, timezone, unit choices — are
 deliberately not published anywhere in this repo. They are specific to one
@@ -170,6 +208,10 @@ If `n` is 0, or the SEEDED line never appears at all, stop and go back to step 2
 - `Site Change`, `Sensor Start` and `Insulin Change` treatments begin appearing.
   These are new — your bridge did not import them. They need `cage sage iage` in
   `SHOW_PLUGINS` before the wear-time pills will render.
+- Where the account has the data, so do zero-rate `Temp Basal` (suspends),
+  `BG Check` (meter or pump readings), `Combo Bolus` (extended boluses) and
+  `Note` records from the CGM app and blood-pressure log. `enteredBy` says which
+  collection each came from.
 
 ### Rollback
 
