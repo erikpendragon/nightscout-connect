@@ -25,7 +25,8 @@ capturing each collection through the driver's own login.
 Two things have no v2 twin. The automated-mode spans and basal bars exist only
 in `/api/v3/graph/data`. The statistics family has no consumer route at all.
 Exercises are not at `/api/v2/exercises`, which exists but is empty; step data
-lives under the v3 histories type `validic_routines`.
+lives in `/api/v3/users/summary/histories` as entries of type `validic_routines`,
+which this driver reads (see the table).
 
 ## Envelope and parameters
 
@@ -99,6 +100,7 @@ the mapper before trusting the output.
 | `pumps/settings` | `settings` | verified, **not fetched** | raw snake_case settings document; the driver reads the same data from v3 instead | — |
 | `/api/v3/devices_and_settings` | — | verified | Nightscout `profile`, or a `Note` proposing one, per `CONNECT_GLOOKO_PROFILE_SYNC` | `glooko-settings` |
 | `/api/v3/graph/data` | — | verified | `entries` fallback when v2 CGM readings are empty | — |
+| `/api/v3/users/summary/histories`, type `validic_routines` | `histories` | verified | one record per day, stamped at the local end of day with `utcOffset`, carrying `steps` (and `distance`, `calories`, `floors`, `elevation`, `duration` when the source supplies them; null or zero from Apple Health). Becomes one `Exercise` at that moment with `glookoActivity {steps, day, …}`. The endpoint takes `patient`, `startDate`, `endDate` only: the v2 cursor parameters and a `types[]` filter both answer 422, and without dates it returns the account's entire history. Its other entry types duplicate v2 collections and are ignored | `glooko-activity` |
 | `insulins` | `insulins` | verified (empty) | not fetched: pen insulin; a pump account has none | — |
 
 Every treatment carries `glookoGuid`, the record's own guid. The Nightscout

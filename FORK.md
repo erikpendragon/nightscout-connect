@@ -70,7 +70,7 @@ carries `carbsInput` and a second carb entry would double-count into COB.
 
 **Every collection Glooko's consumer API exposes.** Stock nightscout-connect
 requests three: scheduled basals, normal boluses and CGM readings. `main`
-requests seventeen per poll. What each becomes in Nightscout:
+requests eighteen per poll. What each becomes in Nightscout:
 
 | Glooko collection | Nightscout record |
 |---|---|
@@ -86,6 +86,7 @@ requests seventeen per poll. What each becomes in Nightscout:
 | `cgm/insulin_events`, `cgm/carbs_events`, `foods` | `Note` |
 | `blood_pressures` | `Note` with the values in `glookoBloodPressure` |
 | `/api/v3/devices_and_settings` | Nightscout `profile`, or a `Note` proposing one |
+| `/api/v3/users/summary/histories` (`validic_routines`) | `Exercise` per day with the step total |
 
 Every record carries `glookoGuid` and an `enteredBy` naming its source, and is
 dated at the pump's own timestamp. On an Omnipod 5 in Automated Mode several of
@@ -209,7 +210,8 @@ If `n` is 0, or the SEEDED line never appears at all, stop and go back to step 2
   These are new — your bridge did not import them. They need `cage sage iage` in
   `SHOW_PLUGINS` before the wear-time pills will render.
 - Where the account has the data, so do zero-rate `Temp Basal` (suspends),
-  `BG Check` (meter or pump readings), `Combo Bolus` (extended boluses) and
+  `BG Check` (meter or pump readings), `Combo Bolus` (extended boluses),
+  `Exercise` (one per day carrying the step total from a phone or watch) and
   `Note` records from the CGM app and blood-pressure log. `enteredBy` says which
   collection each came from.
 
