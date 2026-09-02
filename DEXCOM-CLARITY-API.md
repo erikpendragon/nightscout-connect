@@ -207,3 +207,98 @@ In a browser logged into the correct regional Clarity: DevTools → Network,
 Preserve log, filter `/api/`, load Overview then Devices on a fresh page
 load, then "Save all as HAR with content". A schema-only summariser that
 never copies values lives beside the working notes (`clarity-har-shapes.py`).
+
+## Addendum 2026-09-02, evening — captured from a logged-in session
+
+Everything the home-user app calls was captured once, driving Overview,
+Patterns, Overlay, Daily, Compare, Statistics, AGP and Settings and changing
+the date range. Shapes only; no values here.
+
+### The token chain
+
+1. The identity server (Keycloak behind `uam1`/`uam2`) returns to
+   `/users/auth/dexcom_sts/callback`; Rails sets a session and an
+   `access_token` cookie that is a five-minute Keycloak identity token.
+2. `GET /` with that session returns a tiny page whose inline script writes
+   `localStorage["clarity_externalSession"]` — `{ssSubjectId, accessToken,
+   clinicalTrialIdentifier, clarityConfig{localeOverride, unitsOverride,
+   countryOverride, showUnsupportedLanguageWarning}, sessionId, userType,
+   dexcomUserId}` — and redirects to `/i/`, where the SPA lives. `accessToken`
+   is a fresh one-hour JWT (claims `subjectId, dexcomId, role,
+   consentPermission, issuer, subject, iat, exp`).
+3. The SPA sends it as `Access-Token: <jwt>`; the gateway also accepts
+   `Authorization: Bearer <jwt>`. It rejects the cookie token and cookies alone.
+4. `GET /user/refresh` → `{expires_in: 3600}` keeps the Rails session alive.
+
+`ssSubjectId` is the numeric subject id in every `/api/subject/…` path;
+`dexcomUserId` is the GUID in `/api/v1/home-users/<guid>/…`.
+
+### Request bodies
+
+- `POST /api/subject/<id>/analysis_session` — empty body; one session per
+  visit, reused for every report and date range. Response
+  `{analysisSessionId, subjectId, dateTime, observationDates "<start>/<end>",
+  defaultReportEndDate}`.
+- `POST …/analysis_session/<sid>/{statistics, patterns, pattern_times,
+  glycemic_events, adherence_events, data, modal_week}` — body
+  `{"localDateTimeInterval": ["<local start>/<local end>", …]}`. Empty → 400.
+- `POST …/modal_day` — same, plus optional `"resolution": "PT1H"` (the hourly
+  statistics table; default is 15-minute buckets).
+- GETs take `date_interval=YYYY-MM-DD/YYYY-MM-DD` (`devices`, `alerts`,
+  `pen-data`, `insulin-pen-data`, `post_meal_target_data`, `agp5`) or
+  `startDate`/`endDate` (`fasting-glucose`).
+
+### Routes the UI calls, by page
+
+| Page | Calls |
+|---|---|
+| every route change | `GET /api/v1/subject/<id>` |
+| Overview | `analysis_session`, `target_ranges`, `devices`, `pen-data`, `insulin-pen-data`, `statistics`, `patterns`, `data`, `modal_day`, `pattern_times`, `fasting-glucose`, `post_meal_target_data` |
+| Patterns | `alerts`, `statistics` (one day) |
+| Daily | `glycemic_events`, `adherence_events` |
+| Overlay / Statistics | `modal_week`, `modal_day` (PT1H on the Hourly tab) |
+| AGP | `agp5` |
+| Settings | `target_ranges`, `glucose_targets` |
+
+### Shapes worth knowing
+
+- `devices[]`: `alertScheduleList[{alertScheduleSettings{alertScheduleName,
+  daysOfWeek, startTime, endTime, isDefaultSchedule, isEnabled, isActive},
+  alertSettings[{alertName, enabled, displayTime, systemTime, unit, value,
+  snooze?, delay?}]}]`, plus `displayDevice, language, lastUploadDate,
+  serialNumber, softwareNumber, softwareVersion, transmitterGeneration,
+  transmitterGenerationVariant, displayApp, displayTimeOffset,
+  systemTimeOffset, is24HourMode, isBlindedMode, isMmolDisplayMode, isPro,
+  transmitterId`. The official v3 `devices` schema minus
+  `secondaryTriggerCondition`, the sound fields and the schedule override.
+  Values are mg/dL and mg/dL/min whatever the display units.
+- `alerts[]`: `{alertId, displayTime, alertName, alertState, transmitterModel,
+  transmitterId, nearestEgv?{time, magnitude, absoluteTime, transmitterId,
+  transmitterTime}}`, one record per state transition
+  (`activeAlarming` → `activeSnoozed` → `inactive`) under a shared `alertId`.
+- `target_ranges`: `{veryLow, veryHigh, day{startTime, glucoseRange{min,max}},
+  night{…}, agp{low, high, seriousLow, seriousHigh}}` — the user's range and
+  the fixed consensus range in one object, which is the two-ranges point above.
+- `data`: `{glucoseTargetRanges, events[], unitGroups[{unit{id, family, name},
+  timeMagnitudes[{time, magnitude, absoluteTime, transmitterId,
+  transmitterTime}]}]}` — local time without offset, UTC time, mg/dL, seconds
+  since transmitter start. No trend.
+- `statistics`: `{sum, nDays, nDaysWithUtilization, utilizationPercent,
+  timeInRange{n…/percent… for veryLow, low, withinRange, high, veryHigh},
+  min, max, mean, median, q1, q2, q3, stdDev, variance,
+  meanDailyCalibrations, gmi?, percentCV}`.
+- `modal_day[]` (96 or 24 buckets): the statistics block per
+  `localTimeInterval` plus `trendSegmentLow/High`, `interquartileRange`,
+  `interquartileStdDev`, `meanStdDev`. `modal_week[]`: the same per `dayOfWeek`.
+- `agp5`: `{targetRanges, timeInRange{…Exact variants}, glucoseMetrics{mean,
+  gmi, percentCV, cgmTimeActive}, dataSufficiency{…}, agpProfileGraph{values[
+  {percentile5, 25, 50, 75, 95}]}, dailyGlucoseProfiles[{date, egvs[…]}]}`.
+- `glycemic_events[]`: `{timeInterval, eventType low|high|reboundLow,
+  sustained?}`; `adherence_events[]`: `{date, eventType missedCalibration|
+  lowUtilization}`; `patterns[]`: `{patternKey, patternSeverity,
+  occurrences[{timeInterval, eventType}], percentTimeInRange}`;
+  `pattern_times`: `{nighttimeLows, daytimeLows, nighttimeHighs, daytimeHighs}`.
+
+Not exercised: the Settings writes (`PUT …/glucose_targets`,
+`POST …/target_ranges`, subject-info persist) and the print/email report
+paths, all visible in the bundle.
