@@ -389,8 +389,8 @@ test('Glooko data fetch adds v3 graph fallback when v2 CGM readings are empty', 
     // The pump-event, alarm and food collections are fetched over their own
     // wide window with a bare path. Answer them emptily so tests that are not
     // about them do not have to care.
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
                                        normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
@@ -438,8 +438,8 @@ test('Glooko data fetch can resolve patient code from v3 session profile before 
     // The pump-event, alarm and food collections are fetched over their own
     // wide window with a bare path. Answer them emptily so tests that are not
     // about them do not have to care.
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
                                        normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
@@ -502,8 +502,8 @@ test('Glooko incremental fetch uses the treatment bookmark when glucose is newer
     // The pump-event, alarm and food collections are fetched over their own
     // wide window with a bare path. Answer them emptily so tests that are not
     // about them do not have to care.
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
                                        normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
@@ -566,8 +566,8 @@ test('Glooko authentication and fetch logs omit session and patient identifiers'
       // The pump-event, alarm and food collections are fetched over their own
     // wide window with a bare path. Answer them emptily so tests that are not
     // about them do not have to care.
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ],
                                        normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
@@ -605,8 +605,8 @@ test('Glooko data fetch requests pump suspensions over the wide window and drops
         { pumpTimestamp: '2026-08-29T10:00:00.000Z', duration: 60, type: 'manual', guid: 'susp-gone', softDeleted: true }
       ] } });
     }
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ], normalBoluses: [ ], scheduledBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ], normalBoluses: [ ], scheduledBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
   }));
@@ -735,8 +735,8 @@ test('Glooko data fetch requests temporary basals and extended boluses over the 
       assert.equal(call.options.params.patient, 'patient-123');
       return Promise.resolve({ data: { extendedBoluses: [ { pumpTimestamp: '2026-08-31T18:00:00.000Z', insulinDelivered: 6, initialDelivery: 2, extendedDelivery: 4, extendedBolusDuration: 7200, guid: 'eb-1', softDeleted: true } ] } });
     }
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ], normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ] } });
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|readings|blood_pressures|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ], normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
   }));
@@ -833,8 +833,8 @@ test('Glooko data fetch requests pump readings and CGM insulin/carb events over 
     if (call.path === '/api/v2/cgm/carbs_events') {
       return Promise.resolve({ data: { carbsEvents: [ { systemTime: '2026-08-31T13:00:00.000Z', carbs: 20, guid: 'cc-1' } ] } });
     }
-    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses)|foods)$/.test(call.path)) {
-      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses)|foods|readings|blood_pressures)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], bloodPressures: [ ], normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ] } });
     }
     throw new Error('unexpected path ' + call.path);
   }));
@@ -850,4 +850,93 @@ test('Glooko data fetch requests pump readings and CGM insulin/carb events over 
   assert.deepEqual(batch.pumpReadings.map(function (r) { return r.guid; }), [ 'pr-1' ]);
   assert.deepEqual(batch.cgmInsulinEvents, [ ]);
   assert.deepEqual(batch.cgmCarbsEvents.map(function (e) { return e.guid; }), [ 'cc-1' ]);
+});
+
+test('Glooko transform maps meter readings to BG Check treatments with the meal tag', () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoTimezoneOffset: 0,
+    baseURL: 'https://ca.api.glooko.com'
+  }, fakeAxios(() => Promise.resolve({ data: {} })));
+
+  const result = source.transformData({
+    readings: [],
+    meterReadings: [
+      { timestamp: '2026-08-31T07:00:00.000Z', value: 9800, mealTag: 'before', guid: 'mr-x100' },
+      { timestamp: '2026-08-31T08:00:00.000Z', value: 5.5, meterUnits: 'mmol/L', mealTag: 'none', guid: 'mr-mmol' },
+      { timestamp: '2026-08-31T09:00:00.000Z', value: 0, guid: 'mr-zero' }
+    ]
+  });
+
+  const checks = result.treatments.filter(function (t) { return t.eventType === 'BG Check'; });
+  assert.deepEqual(checks.map(function (t) { return [ t.glookoGuid, t.glucose, t.notes ]; }),
+                   [ [ 'mr-x100', 98, 'Meter reading (before meal)' ], [ 'mr-mmol', 99, 'Meter reading' ] ]);
+  assert.equal(checks[0].enteredBy, 'glooko-meter-reading');
+  assert.equal(checks[0].glucoseType, 'Finger');
+  assert.equal(checks[0].units, 'mg/dl');
+});
+
+test('Glooko transform imports blood pressures as Notes with structured values', () => {
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    glookoTimezoneOffset: 0,
+    baseURL: 'https://ca.api.glooko.com'
+  }, fakeAxios(() => Promise.resolve({ data: {} })));
+
+  const result = source.transformData({
+    readings: [],
+    bloodPressures: [
+      { timestamp: '2026-08-31T07:30:00.000Z', systolic: 121, diastolic: 79, units: 'mmHg', pulse: 68, guid: 'bp-1' },
+      { timestamp: '2026-08-31T08:30:00.000Z', systolic: 118, diastolic: 76, guid: 'bp-2' },
+      { timestamp: '2026-08-31T09:30:00.000Z', systolic: 0, diastolic: 0, guid: 'bp-zero' }
+    ]
+  });
+
+  const notes = result.treatments.filter(function (t) { return t.eventType === 'Note'; });
+  assert.deepEqual(notes.map(function (t) { return t.notes; }),
+                   [ 'Blood pressure 121/79 mmHg, pulse 68', 'Blood pressure 118/76 mmHg' ]);
+  assert.deepEqual(notes[0].glookoBloodPressure, { systolic: 121, diastolic: 79, units: 'mmHg', pulse: 68 });
+  assert.deepEqual(notes[1].glookoBloodPressure, { systolic: 118, diastolic: 76, units: 'mmHg' });
+  assert.equal(notes[0].enteredBy, 'glooko-blood-pressure');
+  assert.equal(notes[0].glookoGuid, 'bp-1');
+});
+
+test('Glooko data fetch requests meter readings and blood pressures over the wide window', async () => {
+  const paths = [];
+  const source = glookoSource({
+    glookoEmail: 'user@example.com',
+    glookoPassword: 'secret',
+    baseURL: 'https://ca.api.glooko.com'
+  }, fakeAxios((call) => {
+    paths.push(call.path);
+    if (call.path.startsWith('/api/v2/pumps/scheduled_basals')) { return Promise.resolve({ data: { scheduledBasals: [] } }); }
+    if (call.path.startsWith('/api/v2/pumps/normal_boluses')) { return Promise.resolve({ data: { normalBoluses: [] } }); }
+    if (call.path.startsWith('/api/v2/cgm/readings')) { return Promise.resolve({ data: { readings: [] } }); }
+    if (call.path === '/api/v2/readings') {
+      assert.equal(call.options.params.patient, 'patient-123');
+      return Promise.resolve({ data: { readings: [
+        { timestamp: '2026-08-31T07:00:00.000Z', value: 9800, guid: 'mr-1' },
+        { timestamp: '2026-08-31T07:30:00.000Z', value: 9900, guid: 'mr-seen' }
+      ] } });
+    }
+    if (call.path === '/api/v2/blood_pressures') {
+      return Promise.resolve({ data: { bloodPressures: [ { timestamp: '2026-08-31T07:30:00.000Z', systolic: 121, diastolic: 79, guid: 'bp-1', softDeleted: true } ] } });
+    }
+    if (/^\/api\/v2\/(pumps\/(events|alarms|scheduled_basals|normal_boluses|suspend_basals|temporary_basals|extended_boluses|readings)|foods|cgm\/insulin_events|cgm\/carbs_events)$/.test(call.path)) {
+      return Promise.resolve({ data: { events: [ ], alarms: [ ], foods: [ ], normalBoluses: [ ], scheduledBasals: [ ], suspendBasals: [ ], temporaryBasals: [ ], extendedBoluses: [ ], readings: [ ], insulinEvents: [ ], carbsEvents: [ ] } });
+    }
+    throw new Error('unexpected path ' + call.path);
+  }));
+
+  const batch = await source.dataFromSesssion({
+    cookies: '_logbook-web_session=session-123',
+    user: { userLogin: { glookoCode: 'patient-123' } }
+  }, { seenGuids: [ 'mr-seen' ] });
+
+  assert.ok(paths.includes('/api/v2/readings'));
+  assert.ok(paths.includes('/api/v2/blood_pressures'));
+  assert.deepEqual(batch.meterReadings.map(function (r) { return r.guid; }), [ 'mr-1' ]);
+  assert.deepEqual(batch.bloodPressures, [ ]);
 });
