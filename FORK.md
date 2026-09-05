@@ -100,8 +100,12 @@ API, the envelope and parameters, units, and the status of each mapper.
 **Pump therapy settings → Nightscout profile.** Glooko carries the pump's own
 insulin duration, carb ratio, correction factor, targets and basal schedule.
 `CONNECT_GLOOKO_PROFILE_SYNC=propose` posts a `Note` saying what the pump
-holds; `override` writes them into the Nightscout profile. Read from
-`/api/v3/devices_and_settings`; see the README and `GLOOKO-DEVICE-SETTINGS.md`.
+holds; `override` writes them into the Nightscout profile; `off`, the default,
+does not even request them. When a pump answers but its settings are in a shape
+the converter does not recognise, it says so and lists the field names it saw -
+names only, no values - so the note doubles as the bug report needed to add that
+pump. Read from `/api/v3/devices_and_settings`; see the README and
+`GLOOKO-DEVICE-SETTINGS.md`.
 The stock driver's `PumpSettings` constant pointed at Glooko's *partner*
 gateway path, which answers 401 to a consumer login; it now names the consumer
 twin, though the v3 endpoint remains the one actually read.
@@ -128,9 +132,8 @@ land upstream these merges become no-ops.
 ## Deploying it
 
 See `GLOOKO-PUMP-EVENTS.md` for what the patch does and which Nightscout
-settings need attention, `GLOOKO-COLLECTIONS.md` for every collection the
-driver requests and what it becomes, and `NIGHTSCOUT-INSTALL-DELTA.md` for
-everything in a working deployment that is not stock.
+settings need attention, and `GLOOKO-COLLECTIONS.md` for every collection the
+driver requests and what it becomes.
 
 Configuration *values* — thresholds, targets, timezone, unit choices — are
 deliberately not published anywhere in this repo. They are specific to one
@@ -140,9 +143,7 @@ person's care and are not reusable. Use your own.
 
 This replaces the Glooko half of it rather than complementing it. Running both
 against the same Nightscout will double-post treatments unless one of them is
-turned off. `GLOOKO-STANDALONE-BRIDGE.md` describes an independent bridge that
-reaches several of the same conclusions by a different route, and where the two
-designs agree and differ.
+turned off.
 
 ## Migrating from your own Glooko bridge
 

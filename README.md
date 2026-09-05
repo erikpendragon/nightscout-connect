@@ -182,7 +182,8 @@ To synchronize from Glooko use the following variables.
 * `CONNECT_SOURCE=glooko`
 * `CONNECT_GLOOKO_EMAIL=`
 * `CONNECT_GLOOKO_PASSWORD=`
-* `CONNECT_GLOOKO_TIMEZONE_OFFSET=0`
+* `CONNECT_GLOOKO_TIMEZONE=` the IANA zone your pump is set to, e.g. `America/Toronto` - **set this**
+* `CONNECT_GLOOKO_TIMEZONE_OFFSET=0` fallback only, used when the above is unset
 * `CONNECT_GLOOKO_DEVICE_ID=` optional stable device identity
 * `CONNECT_GLOOKO_SERIAL_NUMBER=` optional stable serial number
 * `CONNECT_GLOOKO_WEB_ORIGIN=` optional web origin override for regional/custom hosts
@@ -200,13 +201,26 @@ default value for `CONNECT_GLOOKO_ENV` is `default`.
   partner gateway, which wants a partner JWT and API key and answers 401 to an
   email-and-password login. Consumer accounts should use `default`, `eu` or `ca`.
 * `CONNECT_GLOOKO_SERVER` the hostname server to use - `api.glooko.com` by `default`, `eu.api.glooko.com` for EU users, or a more specific regional host such as `de-fr.api.glooko.com`.
-* `CONNECT_GLOOKO_TIMEZONE_OFFSET` defines the time zone offset you are at from the UTC time zone, in hours
+* `CONNECT_GLOOKO_TIMEZONE` is the IANA name of the zone your pump's clock is
+  set to - `America/Toronto`, `Europe/Berlin`. Set it. Glooko stamps every
+  record with pump-local wall-clock time and then labels it `Z` as though it
+  were UTC, so the driver has to put the zone back. An IANA name carries the
+  daylight-saving rules with it and stays correct across the changeover.
+* `CONNECT_GLOOKO_TIMEZONE_OFFSET` is the older fallback: a fixed offset from
+  UTC, in hours. It is used only when `CONNECT_GLOOKO_TIMEZONE` is unset, and
+  because it cannot know about daylight saving it is **an hour wrong for half
+  the year**. The driver prints which of the two it is using at startup - check
+  that line says `DST-aware` before trusting any timestamp.
 
 If both, `CONNECT_GLOOKO_SERVER` and `CONNECT_GLOOKO_ENV` are set, only
 `CONNECT_GLOOKO_SERVER` will be used.
 
 Glooko uploads treatments and, when the v2 `cgm/readings` endpoint returns
-readings, CGM entries. Some EU accounts may require newer web-login or v3 graph
+readings, CGM entries. Treatments cover boluses, scheduled, temporary and
+suspended basals, extended boluses, site/sensor/cartridge changes, pump alarms,
+finger-stick and meter readings, manually logged insulin, carbs and food, blood
+pressure, and daily activity. `GLOOKO-COLLECTIONS.md` lists every collection the
+driver requests and what each one becomes in Nightscout. Some EU accounts may require newer web-login or v3 graph
 flows. `CONNECT_GLOOKO_AUTH_MODE=web` uses Glooko's web sign-in form with CSRF
 token handling; `auto` tries API login first and falls back to web login on a
 422 response. The optional v3 graph fallback fetches `cgmHigh`, `cgmNormal`,

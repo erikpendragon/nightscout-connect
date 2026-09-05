@@ -83,9 +83,9 @@ is log noise rather than a correctness problem.
 
 ## Nightscout configuration (not code)
 
-Specific values are deliberately omitted — see `NIGHTSCOUT-INSTALL-DELTA.md` for
-why. What matters is *which* settings need attention, not one deployment's
-numbers:
+Specific values are deliberately omitted: thresholds and targets belong to one
+person's care and are not reusable. What matters is *which* settings need
+attention, not anyone's numbers:
 
 - The four BG thresholds are stored in **mg/dL regardless of `DISPLAY_UNITS`**,
   which is the usual place people go wrong. Use your own care team's targets.

@@ -124,6 +124,32 @@ to be set by hand.
   change is visible rather than silent.
 - Remove the standing question of whether a hand-copied value is still current.
 
+## Pumps this does not understand yet
+
+This was written against the settings tree of one pump. Glooko appears to
+normalise across vendors - `cgmSettings` and `hybridClosedLoopSettings` come
+back present-but-empty rather than absent, the field names are vendor-neutral,
+and all five schedule blocks share one shape - so the converter should carry to
+other pumps. That is an expectation, not a result: every schedule on the pump it
+was written against is a flat 24-hour segment, so multiple basal programs and
+ranged targets (`valueLow`/`valueHigh`) have only ever run against hand-written
+fixtures.
+
+Rather than fail silently, a pump whose settings cannot be parsed produces a
+note naming the pump and listing the field names Glooko returned for it:
+
+> Could not read therapy settings for <pump> from Glooko. The Nightscout
+> profile has to be maintained by hand ... Adding support for this pump means
+> teaching the converter the shape below; field names only, no values:
+> activeInsulinTime, generalSettings, isfSegments, profilesBolus, segmentStart,
+> targetBgSegments, ...
+
+That list is the fixture needed to add support, and it is safe to share: the
+levels keyed by device guid and by snapshot timestamp are walked through but
+never reported, every reported name has to be a plain identifier with no run of
+digits (so guids, timestamps, serial numbers and ids cannot appear), and no
+value of any kind is included. Paste it into an issue.
+
 ## Reproducing
 
 Logged into the Glooko web app, on the devices page, in the browser console:
