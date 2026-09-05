@@ -287,3 +287,51 @@ test('an unnamed pump still produces a usable message', () => {
   assert.ok(note);
   assert.match(note.notes, /the pump on this account/);
 });
+
+// A settings response deliberately keyed by the things that must never be
+// reported - a device guid, a snapshot timestamp, a serial, a numeric id - and
+// carrying a value that must never be reported either.
+const batchWithHostileKeys = {
+  readings: [ ]
+, deviceSettings: {
+    activePumpGuid: 'pump-h'
+  , devices: [ { type: 'pump', brand: 'Acme', model: 'Model One', guid: 'pump-h' } ]
+  , deviceSettings: { pumps: { 'pump-h': { '2026-06-03T16:58:01.427Z': {
+      'a1b2c3d4-e5f6-7890-abcd-ef1234567890': { nestedBelowAGuid: 1 }
+    , 'SN12345678': { nestedBelowASerial: 2 }
+    , '9912345': { nestedBelowAnId: 3 }
+    , wearerName: 'Jane Doe'
+    , unknownSettings: { schedules: [ ] }
+    } } } }
+  }
+};
+
+test('the unreadable note carries the field names so somebody can add support', () => {
+  const out = sourceWith('propose').transformData(batchWithUnreadableSettings);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.match(note.notes, /field names only, no values/, 'says plainly what it is');
+  [ 'generalSettings', 'activeInsulinTime', 'somethingUnexpected', 'schedules' ]
+    .forEach((name) => assert.ok(note.notes.includes(name), 'reports ' + name));
+});
+
+test('the field names never carry a guid, a timestamp, a serial or a value', () => {
+  const out = sourceWith('propose').transformData(batchWithHostileKeys);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  [ 'a1b2c3d4', 'e5f6', '2026-06-03', '16:58', 'SN12345678', '9912345', 'Jane Doe' ]
+    .forEach((leak) => assert.ok(!note.notes.includes(leak), 'must not report ' + leak));
+  assert.ok(note.notes.includes('unknownSettings'), 'but the real shape is still reported');
+  assert.ok(note.notes.includes('nestedBelowAGuid'),
+            'and a guid-keyed level is walked through rather than dropped');
+});
+
+test('the field name list is capped so the note stays readable', () => {
+  const wide = { };
+  for (let i = 0; i < 90; i++) { wide['fieldNumber' + String.fromCharCode(97 + i % 26) + i % 3] = i; }
+  const batch = { readings: [ ]
+                , deviceSettings: { activePumpGuid: 'pump-w'
+                  , devices: [ { type: 'pump', brand: 'Acme', model: 'Wide', guid: 'pump-w' } ]
+                  , deviceSettings: { pumps: { 'pump-w': { '2026-06-03T00:00:00.000Z': wide } } } } };
+  const out = sourceWith('propose').transformData(batch);
+  const note = out.treatments.find((t) => t.enteredBy === 'glooko-settings');
+  assert.ok(note.notes.length < 1600, 'a timeline note nobody can read helps nobody');
+});

@@ -259,8 +259,14 @@ This reads `/api/v3/devices_and_settings`. Glooko carries many pumps and this
 has been verified against few, so it may not understand yours. If it cannot
 read your settings it posts a note saying so and naming the pump, and leaves
 the profile alone - the profile then stays yours to maintain by hand, which it
-already was, but you are told rather than left assuming otherwise. That note is
-also the useful bug report: it names the pump the driver could not read.
+already was, but you are told rather than left assuming otherwise.
+
+That note is also the bug report. Along with the pump it lists the field names
+Glooko returned for it - names only, never values - which is precisely what is
+needed to teach the converter that pump's shape. Nothing about you is in it:
+device identifiers, timestamps and serial numbers are filtered out, and no
+value of any kind is included. Paste it into an issue and support for your pump
+becomes something somebody can actually write.
 
 ### Libre Link Up
 To synchronize from Libre Link Up use the following variables.
